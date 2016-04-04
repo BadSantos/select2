@@ -39,6 +39,9 @@ define(function () {
     },
     searching: function () {
       return 'Searching…';
+    },
+    multipleSelected: function(args) {
+      return 'Selected '+args.count;
     }
   };
 });

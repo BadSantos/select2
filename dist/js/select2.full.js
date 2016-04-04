@@ -1536,113 +1536,142 @@ S2.define('select2/selection/single',[
 });
 
 S2.define('select2/selection/multiple',[
-  'jquery',
-  './base',
-  '../utils'
+    'jquery',
+    './base',
+    '../utils'
 ], function ($, BaseSelection, Utils) {
-  function MultipleSelection ($element, options) {
-    MultipleSelection.__super__.constructor.apply(this, arguments);
-  }
+    function MultipleSelection($element, options) {
+        this.options = options;
+        MultipleSelection.__super__.constructor.apply(this, arguments);
+    }
 
-  Utils.Extend(MultipleSelection, BaseSelection);
+    Utils.Extend(MultipleSelection, BaseSelection);
 
-  MultipleSelection.prototype.render = function () {
-    var $selection = MultipleSelection.__super__.render.call(this);
+    MultipleSelection.prototype.render = function () {
+        var $selection = MultipleSelection.__super__.render.call(this);
 
-    $selection.addClass('select2-selection--multiple');
+        $selection.addClass('select2-selection--multiple');
 
-    $selection.html(
-      '<ul class="select2-selection__rendered"></ul>'
-    );
+        $selection.html(
+            '<ul class="select2-selection__rendered"></ul>'
+        );
 
-    return $selection;
-  };
+        return $selection;
+    };
 
-  MultipleSelection.prototype.bind = function (container, $container) {
-    var self = this;
+    MultipleSelection.prototype.bind = function (container, $container) {
+        var self = this;
 
-    MultipleSelection.__super__.bind.apply(this, arguments);
+        MultipleSelection.__super__.bind.apply(this, arguments);
 
-    this.$selection.on('click', function (evt) {
-      self.trigger('toggle', {
-        originalEvent: evt
-      });
-    });
+        this.$selection.on('click', function (evt) {
+            self.trigger('toggle', {
+                originalEvent: evt
+            });
+        });
 
-    this.$selection.on(
-      'click',
-      '.select2-selection__choice__remove',
-      function (evt) {
-        // Ignore the event if it is disabled
-        if (self.options.get('disabled')) {
-          return;
+        this.$selection.on(
+            'click',
+            '.select2-selection__choice__remove',
+            function (evt) {
+                // Ignore the event if it is disabled
+                if (self.options.get('disabled')) {
+                    return;
+                }
+
+                var $remove = $(this);
+                var $selection = $remove.parent();
+
+                var data = $selection.data('data');
+
+                if(data.id !== 'collapsed') {
+                    data = [data];
+                } else {
+                    data = data.extData;
+                }
+
+                $(data).each(function(i, data) {
+                    self.trigger('unselect', {
+                        originalEvent: evt,
+                        data: data
+                    });
+                });
+            }
+        );
+    };
+
+    MultipleSelection.prototype.clear = function () {
+        this.$selection.find('.select2-selection__rendered').empty();
+    };
+
+    MultipleSelection.prototype.display = function (data, container) {
+        var template = this.options.get('templateSelection');
+        var escapeMarkup = this.options.get('escapeMarkup');
+
+        return escapeMarkup(template(data, container));
+    };
+
+    MultipleSelection.prototype.selectionContainer = function () {
+        var $container = $(
+            '<li class="select2-selection__choice">' +
+            '<span class="select2-selection__choice__remove" role="presentation">' +
+            '&times;' +
+            '</span>' +
+            '</li>'
+        );
+
+        return $container;
+    };
+
+    MultipleSelection.prototype.update = function (data) {
+        this.clear();
+
+        if (data.length === 0) {
+            return;
         }
 
-        var $remove = $(this);
-        var $selection = $remove.parent();
+        var $selections = [];
 
-        var data = $selection.data('data');
+        if (this.options.options.collapseWhen !== false && data.length >= this.options.options.collapseWhen) {
 
-        self.trigger('unselect', {
-          originalEvent: evt,
-          data: data
-        });
-      }
-    );
-  };
+            var selectedText = this.options.get('translations').get('multipleSelected');
 
-  MultipleSelection.prototype.clear = function () {
-    this.$selection.find('.select2-selection__rendered').empty();
-  };
+            obj = JSON.parse(JSON.stringify(data[0]));
+            obj.extData = JSON.parse(JSON.stringify(data));
 
-  MultipleSelection.prototype.display = function (data, container) {
-    var template = this.options.get('templateSelection');
-    var escapeMarkup = this.options.get('escapeMarkup');
+            obj.id = 'collapsed';
+            obj.text = selectedText({count: data.length});;
 
-    return escapeMarkup(template(data, container));
-  };
+            obj.title = [];
+            $(data).each(function (i, item) {
+                obj.title.push(item.title || item.text);
+            });
+            obj.title = obj.title.join("\n");
 
-  MultipleSelection.prototype.selectionContainer = function () {
-    var $container = $(
-      '<li class="select2-selection__choice">' +
-        '<span class="select2-selection__choice__remove" role="presentation">' +
-          '&times;' +
-        '</span>' +
-      '</li>'
-    );
+            data = [obj];
 
-    return $container;
-  };
+        }
 
-  MultipleSelection.prototype.update = function (data) {
-    this.clear();
+        for (var d = 0; d < data.length; d++) {
+            var selection = data[d];
 
-    if (data.length === 0) {
-      return;
-    }
+            var $selection = this.selectionContainer();
+            var formatted = this.display(selection, $selection);
 
-    var $selections = [];
+            $selection.append(formatted);
+            $selection.prop('title', selection.title || selection.text);
 
-    for (var d = 0; d < data.length; d++) {
-      var selection = data[d];
+            $selection.data('data', selection);
 
-      var $selection = this.selectionContainer();
-      var formatted = this.display(selection, $selection);
+            $selections.push($selection);
+        }
 
-      $selection.append(formatted);
-      $selection.prop('title', selection.title || selection.text);
+        var $rendered = this.$selection.find('.select2-selection__rendered');
 
-      $selection.data('data', selection);
+        Utils.appendMany($rendered, $selections);
+    };
 
-      $selections.push($selection);
-    }
-
-    var $rendered = this.$selection.find('.select2-selection__rendered');
-
-    Utils.appendMany($rendered, $selections);
-  };
-
-  return MultipleSelection;
+    return MultipleSelection;
 });
 
 S2.define('select2/selection/placeholder',[
@@ -3436,6 +3465,12 @@ S2.define('select2/data/ajax',[
 
         callback(results);
       }, function () {
+        // Attempt to detect if a request was aborted
+        // Only works if the transport exposes a status property
+        if ($request.status && $request.status === '0') {
+          return;
+        }
+
         self.trigger('results:message', {
           message: 'errorLoading'
         });
@@ -3607,6 +3642,29 @@ S2.define('select2/data/tokenizer',[
   Tokenizer.prototype.query = function (decorated, params, callback) {
     var self = this;
 
+    function createAndSelect (data) {
+      // Normalize the data object so we can use it for checks
+      var item = self._normalizeItem(data);
+
+      // Check if the data object already exists as a tag
+      // Select it if it doesn't
+      var $existingOptions = self.$element.find('option').filter(function () {
+        return $(this).val() === item.id;
+      });
+
+      // If an existing option wasn't found for it, create the option
+      if (!$existingOptions.length) {
+        var $option = self.option(item);
+        $option.attr('data-select2-tag', true);
+
+        self._removeOldTags();
+        self.addOptions([$option]);
+      }
+
+      // Select the item, now that we know there is an option for it
+      select(item);
+    }
+
     function select (data) {
       self.trigger('select', {
         data: data
@@ -3615,7 +3673,7 @@ S2.define('select2/data/tokenizer',[
 
     params.term = params.term || '';
 
-    var tokenData = this.tokenizer(params, this.options, select);
+    var tokenData = this.tokenizer(params, this.options, createAndSelect);
 
     if (tokenData.term !== params.term) {
       // Replace the search term if we have the search box
@@ -4251,6 +4309,7 @@ S2.define('select2/dropdown/attachBody',[
 
     if (this.options.get('dropdownAutoWidth')) {
       css.minWidth = css.width;
+      css.position = 'relative';
       css.width = 'auto';
     }
 
@@ -4422,6 +4481,9 @@ S2.define('select2/i18n/en',[],function () {
     },
     searching: function () {
       return 'Searching…';
+    },
+    multipleSelected: function(args) {
+      return 'Selected '+args.count;
     }
   };
 });
@@ -4783,6 +4845,7 @@ S2.define('select2/defaults',[
       amdBase: './',
       amdLanguageBase: './i18n/',
       closeOnSelect: true,
+      collapseWhen: false,
       debug: false,
       dropdownAutoWidth: false,
       escapeMarkup: Utils.escapeMarkup,
@@ -6235,6 +6298,7 @@ S2.define('jquery.select2',[
         return this;
       } else if (typeof options === 'string') {
         var ret;
+        var args = Array.prototype.slice.call(arguments, 1);
 
         this.each(function () {
           var instance = $(this).data('select2');
@@ -6245,8 +6309,6 @@ S2.define('jquery.select2',[
               'element that is not using Select2.'
             );
           }
-
-          var args = Array.prototype.slice.call(arguments, 1);
 
           ret = instance[options].apply(instance, args);
         });

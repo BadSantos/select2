@@ -53,6 +53,9 @@ define(function () {
     },
     searching: function () {
       return 'Поиск…';
+    },
+    multipleSelected: function(args) {
+      return 'Выбрано '+args.count;
     }
   };
 });

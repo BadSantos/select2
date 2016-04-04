@@ -355,6 +355,7 @@ define([
       amdBase: './',
       amdLanguageBase: './i18n/',
       closeOnSelect: true,
+      collapseWhen: false,
       debug: false,
       dropdownAutoWidth: false,
       escapeMarkup: Utils.escapeMarkup,
